@@ -16,8 +16,13 @@
 
 #define PORT 8999
 
-int n_nodes;
+int n_nodes, job_index, ticket_ct;
+
 node * free_nodes;
+sem_t sem_free;
+sem_t sem_running;
+job * running_jobs;
+
 sigset_t proc;
 
 /*Communication thread */
@@ -131,6 +136,15 @@ void * process_node(void * arg){ //side node. arg = port#
 
 		if(req.request_type == DEPLOY){
 
+				//create job object
+				job new_job;
+
+				running_jobs[job_index] = new_job;
+				running_jobs[job_index].ticket_num = ticket_ct;
+				job_index++;
+
+				ticket_ct++;
+
 				//open file for writing
 				char path_file[30];
 				sprintf(path_file, "%s/client.tar.gz", dir_name); //create zip file in dir
@@ -233,6 +247,9 @@ int main(int argc, char ** argv){
 	printf("Starting\n");
 
 	create_side_nodes();
+
+	//helper method
+	field_setup();
 
 	//upon ctrl+c, cleanup initiated
 	handle_sig();
@@ -371,6 +388,27 @@ void create_side_nodes(){
 	
 }
 
+//handles creation of data structures used by server
+void field_setup(){
+
+	//create list of jobs
+	if((running_jobs = (job *)malloc(n_nodes * sizeof(job))) == NULL){
+		perror("malloc");
+		exit(2);
+	}
+
+	job_index = 0;
+	ticket_ct = 0;
+
+	//initialize semaphores
+	if((sem_free = sem_open("mysem_1", O_CREAT | O_EXCL | O_RDWR, 0666, 1)) == SEM_FAILED){
+		perror("sem_open");
+	}
+	if((sem_running = sem_open("mysem_2", O_CREAT | O_EXCL | O_RDWR, 0666, 1)) == SEM_FAILED){
+		perror("sem_open");
+	}
+}
+
 /*Upon SIGINT, cleanup will be initiated*/
 void handle_sig(){
 	sigfillset(&proc);
@@ -382,8 +420,13 @@ void handle_sig(){
 	sigaction(SIGINT, &act, 0);
 }
 
+//destroys semaphore
 void cleanup(int sig){
 
+	sem_close(sem_free);
+	sem_close(sem_running);
+	sem_unlink("mysem_1");
+	sem_unlink("mysem_2");
 	exit(0);
 
 }

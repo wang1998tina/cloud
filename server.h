@@ -14,8 +14,16 @@ typedef struct nodes{
 	int sock;
 } node;
 
+typedef struct jobs{
+	int ticket_num;
+	node assoc_nodes[5];
+} job;
+
 extern int n_nodes;
 extern node * free_nodes;
+extern sem_t sem_free;
+extern job * running_jobs;
+extern sem_t sem_running;
 
 
 void create_side_nodes();
