@@ -7,4 +7,5 @@ typedef struct req {
 	struct sockaddr_in client_addr;
 	int ticket;
 	char dir[20];
+	int replicas;
 } request;

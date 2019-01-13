@@ -16,7 +16,7 @@
 
 #define PORT 8999
 
-int n_nodes, job_index, ticket_ct;
+int n_nodes, job_index, ticket_ct, free_n_size;
 
 node * free_nodes;
 sem_t sem_free;
@@ -42,7 +42,32 @@ void * process_req(void * s){ //comm thread
 		exit(1);
 	}
 
+	if(buffer.request_type == DEPLOY){
+
+		//create job object and update list of jobs
+		job new_job;
+
+		sem_wait(sem_running);
+		running_jobs[job_index] = new_job;
+		running_jobs[job_index].ticket_num = ticket_ct;
+
+		if(buffer.replicas <= free_n_size){
+			int j;
+			for(j=0; j<buffer.replicas; j++){
+				buffer.assoc_nodes[j] = free_n[j];
+			}
+		} else{
+			//queue the job
+		}
+
+		job_index++;
+		sem_post(sem_running);
+
+		ticket_ct++;
+	}
+
 	int ssock = free_nodes[0].sock;
+
 	//write buffer to side node
 	if(write(ssock, &buffer, sizeof(buffer)) == -1){
 		perror("write");
@@ -135,15 +160,6 @@ void * process_node(void * arg){ //side node. arg = port#
 		printf("Side: received request\n");
 
 		if(req.request_type == DEPLOY){
-
-				//create job object
-				job new_job;
-
-				running_jobs[job_index] = new_job;
-				running_jobs[job_index].ticket_num = ticket_ct;
-				job_index++;
-
-				ticket_ct++;
 
 				//open file for writing
 				char path_file[30];
@@ -331,6 +347,7 @@ void create_side_nodes(){
 	getline(&line, &len, fp);
 
 	n_nodes = atoi(line);
+	free_n_size = n_nodes;
 
 	if((free_nodes = (node *)malloc(n_nodes * sizeof(node))) == NULL){
 		perror("malloc");

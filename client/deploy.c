@@ -62,6 +62,7 @@ int main(int argc, char ** argv){
 	memset((void *)&msg, 0, sizeof(msg));
 	msg.request_type = DEPLOY;
 	msg.client_addr = src;
+	msg.replicas = 1;
 
 	//send request
 	if(write(sock, &msg, sizeof(msg)) == -1){
